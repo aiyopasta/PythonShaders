@@ -7,28 +7,16 @@ from OpenGL.GL import *
 from OpenGL.GL.shaders import compileProgram, compileShader
 import numpy as np
 
-# Vertex and Fragment Shader Programs (TODO: Change implementation to read them from different files.)
-vertex_src = """
-# version 410
-layout(location = 0) in vec4 a_position;
-layout(location = 1) in vec3 a_color;
-out vec3 v_color;
-void main()
-{
-    gl_Position = a_position;
-    v_color = a_color;
-}
-"""
 
-fragment_src = """
-# version 410
-in vec3 v_color;
-out vec4 frag_color;
-void main()
-{
-    frag_color = vec4(v_color, 1.0);
-}
-"""
+def readall(filename:str):
+    with open(filename) as f:
+        lines = f.read()  # reads entire file as 1 string
+        return lines
+
+
+# Vertex and Fragment Shader Programs (TODO: Change implementation to read them from different files.)
+vertex_src = readall('vert.glsl')
+fragment_src = readall('frag.glsl')
 
 
 # Resize OpenGL Viewport to match window size
