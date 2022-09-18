@@ -6,6 +6,7 @@ import glfw  # library for creating window, event handling, etc. (other alternat
 from OpenGL.GL import *
 from OpenGL.GL.shaders import compileProgram, compileShader
 import numpy as np
+import time
 
 
 def readall(filename:str):
@@ -33,7 +34,7 @@ glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 4)
 glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 1)
 glfw.window_hint(glfw.OPENGL_FORWARD_COMPAT, GL_TRUE)
 glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
-window = glfw.create_window(1000, 1000, "Hello OpenGL!", None, None)
+window = glfw.create_window(1920, 1080, "Hello OpenGL!", None, None)
 if not window:
     glfw.terminate()
     raise Exception("glfw window cannot be created!")
@@ -82,15 +83,20 @@ color_idx = glGetAttribLocation(shader, "a_color")  # It is 1
 glEnableVertexAttribArray(color_idx)
 glVertexAttribPointer(color_idx, 3, GL_FLOAT, GL_FALSE, 24, ctypes.c_void_p(12))  # Start at byte 12 and keep reading 3 floats at 24 entry intervals
 
+# 3. Send the uniform time variable.
+uniform_idx = glGetUniformLocation(shader, "time")
+
 # Tells OpenGL to use our shader program.
 glUseProgram(shader)
 glClearColor(0, 0.1, 0.1, 1)  # Sets background color
 
 # The main game loop
+start = time.time()
 while not glfw.window_should_close(window):
     glfw.poll_events()  # makes application responsive
     glClear(GL_COLOR_BUFFER_BIT)  # Clears the colors buffer
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)  # Draw the quad (the 4 vertices from 0 to 3 inclusive)
+    glUniform1f(uniform_idx, time.time() - start)
     glfw.swap_buffers(window)  # makes the background buffer in which you've drawn new stuff visible
 
 # terminate glfw, free up allocated resources
