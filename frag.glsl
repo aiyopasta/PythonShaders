@@ -17,26 +17,19 @@ float stability(vec2 z0, vec2 c, int maxsteps) {
 
     return float(step) / float(maxsteps);
 }
-//
-//float pan(float amt, float t) {
-//    return min(amt, t) / amt;
-//}
-
-float zoom(float amt, float t) {
-    return min(1.0, t / amt);
-}
 
 void main()  {
     // Constants
-    float ratio = 1920.0 / 1080.0;  // TODO: Adjust the ratio by the zoom, maybe what's happening is you're sampling values that are eventually too sparse in comparison with the zoom level!
+    float ratio = 1920.0 / 1080.0;
+
+    // TODO: Fix color mapping so it looks like on all levels of zoom.
 
     // Target coordinate
     vec2 target = vec2(-0.77568377, 0.13646737);
 
     // Target min/max
-    float amt = 2;
-    float zoomi = 0.00001;  // It's 2 - (-2) = 4.
-    float zoomf = 0.00001;
+    float zoomi = 4.0;  // It's 2 - (-2) = 4.
+    float zoomf = 0.000001;
     float xlen = zoomi * pow(zoomf / zoomi, min(1, 20*time / 100.0));
     float ylen = xlen / ratio;
 
