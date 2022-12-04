@@ -15,7 +15,7 @@ def readall(filename:str):
         return lines
 
 
-# Vertex and Fragment Shader Programs (TODO: Change implementation to read them from different files.)
+# Vertex and Fragment Shader Programs
 vertex_src = readall('vert.glsl')
 fragment_src = readall('frag.glsl')
 

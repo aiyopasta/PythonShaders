@@ -22,7 +22,7 @@ void main()  {
     // Constants
     float ratio = 1920.0 / 1080.0;
 
-    // TODO: Fix color mapping so it looks like on all levels of zoom.
+    // TODO: Fix color mapping so it looks nice on all levels of zoom.
 
     // Target coordinate
     vec2 target = vec2(-0.77568377, 0.13646737);
