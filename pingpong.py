@@ -100,6 +100,8 @@ time_idx = glGetUniformLocation(shader, "time")
 screenTexture_idx = glGetUniformLocation(shader, "screenTexture")
 # 5. Send the uniform blah variable.
 blah_idx = glGetUniformLocation(shader, "blah")
+# 6. Send the uniform n variable.
+n_idx = glGetUniformLocation(shader, "n")
 
 
 # Create and bind FBO1
@@ -163,9 +165,14 @@ glClearColor(0, 0.1, 0.1, 1)  # Sets background color
 # 5. Do everything you did in the while loop for the epilepsy example.
 
 ping_pong = True
+n = 1
+start = time.time()
 while not glfw.window_should_close(window):
+    print(n)
     # 1.
     glUniform1i(blah_idx, 1 if ping_pong else 2)
+    glUniform1i(n_idx, n)
+    glUniform1f(time_idx, time.time() - start)
     # 2.
     glActiveTexture(GL_TEXTURE0)
     glBindTexture(GL_TEXTURE_2D, color_attachment1 if not ping_pong else color_attachment2)
@@ -187,12 +194,14 @@ while not glfw.window_should_close(window):
     glClear(GL_COLOR_BUFFER_BIT)
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
 
-    # Toggle ping pong
+    # Toggle ping pong, increment n
     ping_pong = not ping_pong
+    n += 1
 
     # The regular stuff
     glfw.swap_buffers(window)
     glfw.poll_events()
+    time.sleep(0)
 
 
 # # EPILEPSY ————
