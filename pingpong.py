@@ -201,7 +201,7 @@ while not glfw.window_should_close(window):
     # The regular stuff
     glfw.swap_buffers(window)
     glfw.poll_events()
-    time.sleep(0)
+    time.sleep(1)
 
 
 # # EPILEPSY ————
