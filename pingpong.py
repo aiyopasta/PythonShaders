@@ -144,7 +144,7 @@ ping_pong = True
 n = 1
 start = time.time()
 while not glfw.window_should_close(window):
-    print(n)
+    # print(n)
     # 1. Send the correct blah variable, based on value of ping_pong.
     glUniform1i(blah_idx, 1 if ping_pong else 2)
     glUniform1i(n_idx, n)

@@ -1,5 +1,5 @@
 #version 410
-#define PI 3.1415926535897932384626433832795028841971
+#define PI 3.141592653589793238462643383279502884197169399375105
 #define INF 100000.0
 
 uniform float time;  // elapsed time in seconds
@@ -13,23 +13,66 @@ in vec2 v_tex_coords;
 
 out vec4 frag_color;
 
-float rho = 50.0;  // dist from world origin to eye
+float rho = 100.0;  // dist from world origin to eye
 float theta = (-PI / 2.0) + (time * (PI / 10));
 float phi = PI / 2.0;
-float focus = 40.0;  // must be less than rho!
+float focus = 80.0;  // must be less than rho!
 float s_width = 10.0;  // screen width, in the imaginary world (not actual screen)
+int max_bounce = 0;
+
 
 // Helper functions
 float rng(vec2 co){
     return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
 }
 
+uint wang_hash(inout uint seed)
+{
+    seed = uint(seed ^ uint(61)) ^ uint(seed >> uint(16));
+    seed *= uint(9);
+    seed = seed ^ (seed >> 4);
+    seed *= uint(0x27d4eb2d);
+    seed = seed ^ (seed >> 15);
+    return seed;
+}
+
+float RandomFloat01(inout uint state)
+{
+    return float(wang_hash(state)) / 4294967296.0;
+}
+
+vec3 RandomUnitVector(inout uint state)
+{
+    float z = RandomFloat01(state) * 2.0f - 1.0f;
+    float a = RandomFloat01(state) * 2.0f * PI;
+    float r = sqrt(1.0f - z * z);
+    float x = r * cos(a);
+    float y = r * sin(a);
+    return vec3(x, y, z);
+}
+
+vec3 to_world(vec3 dir, vec3 nor) {
+    vec3 tan_ = cross(nor, vec3(0.0, 0.0, 1.0));
+    vec3 bitan = cross(tan_, nor);
+    mat3 frame = mat3(bitan, tan_, nor);
+    return frame * dir;
+}
+
+// Material
+struct Material {
+    vec3 diffuseCol;  // Each entry must be between 0 and 1 if non-light. Else, this is Le.
+    vec3 specularCol;
+    float shine;
+    float percentSpecular;
+    bool is_light;
+};
+
 // Intersection Point
 struct IntersectionPoint {
     float t;
     vec3 pos;
     vec3 nor;
-    bool on_light;  // true iff point lies on area-light
+    Material mat;
 };
 
 // Ray
@@ -43,11 +86,13 @@ struct Ray {
 struct Sphere {
     float radius;
     vec3 center;
+    Material mat;
 };
 
 struct Triangle {
     vec3 verts[3];  // Oriented counter-clockwise.
     bool is_light;  // true iff it's an area-light
+    Material mat;
 };
 
 // Scene
@@ -58,8 +103,8 @@ struct Scene {
     Sphere spheres[5];
 
     // NOTE: INDEX 0 CANNOT BE A LIGHT!
-    int t_lights[5];  // list of indices in tris array corresponding to lights
-    int s_lights[5];  // list of indices in tris array corresponding to lights
+    // Assumption: Only pairs of triangles forming a rectangle can be a light.
+    ivec2 t_lights[5];  // list of pairs of indices corresponding to lights in tris array
 
 };
 
@@ -96,6 +141,7 @@ IntersectionPoint intersect_triangle(Triangle tri, Ray ray) {
         isect.t = t;
         isect.pos = point;
         isect.nor = n;
+        isect.mat = tri.mat;
     }
     return isect;
 }
@@ -120,11 +166,14 @@ IntersectionPoint intersect_sphere(Sphere s, Ray ray) {
     if (disc < 0.0) {
         return point;
     }
-    float t = min((-B + sqrt(disc)) / (2.0 * A), (-B - sqrt(disc)) / (2.0 * A));
-    if (t >= 0.0) {
+    float t1 = (-B + sqrt(disc)) / (2.0 * A);
+    float t2 = (-B - sqrt(disc)) / (2.0 * A);
+    float t = 0.0 < min(t1, t2) ? min(t1, t2) : max(max(t1, 0.0), max(t2, 0.0));
+    if (t > 0.0) {
         point.t = t;
         point.pos = ray.origin + (t * ray.dir);
         point.nor = normalize(point.pos - center);
+        point.mat = s.mat;
     }
     return point;
 }
@@ -134,6 +183,19 @@ IntersectionPoint intersect_sphere(Sphere s, Ray ray) {
 Scene scene2() {
     Scene scene;
 
+    // Color / light params
+    vec3 Le = vec3(6.0);
+
+    // Create Materials
+    Material redDiffuse = Material(vec3(1.0, 0.0, 0.0), vec3(0.0), 0.0, 0.0, false);
+    Material greenDiffuse = Material(vec3(0.0, 1.0, 0.0), vec3(0.0), 0.0, 0.0, false);
+    Material blueDiffuse = Material(vec3(0.0, 0.0, 1.0), vec3(0.0), 0.0, 0.0, false);
+    Material whiteDiffuse = Material(vec3(1.0), vec3(0.0), 0.0, 0.0, false);
+    Material whiteLight = Material(Le, vec3(0.0), 0.0, 0.0, true);
+    Material specular = Material(vec3(0.0), vec3(1.0), 1.0, 1.0, false);
+
+    Material blueGloss = Material(vec3(0.0, 0.0, 1.0), vec3(0.0, 0.4, 0.4), 0.0, 0.5, false);
+
     // Box parameters. It opens up on the negative y-axis. 'h' below stands for 'half'.
     float hx = 30.0 / 2.0;
     float hy = 30.0 / 2.0;
@@ -141,30 +203,55 @@ Scene scene2() {
 
 
     // Box will be a collection of triangles.
-    const int n_tris = (5 + 1) * 2;
+    // Triangle(vec3[3]( vec3(-hx, hy, -hz), vec3(hx, hy, -hz), vec3(-hx, hy, hz) ))
+    const int n_tris = 2;//(5 + 1) * 2;
     scene.n_tris = n_tris;
     const float p = 0.3;  // percentage smaller area-light is compared to ceiling.
     const float dz = -0.1; // z-displacement from ceiling to area light
-    Triangle tris[n_tris] = Triangle[n_tris] (
+    Triangle tris[n_tris] = Triangle[n_tris](
         // Floor
-        Triangle(vec3[3]( vec3(-hx, -hy, -hz), vec3(hx, -hy, -hz), vec3(-hx, hy, -hz) ), false),
-        Triangle(vec3[3]( vec3(hx, hy, -hz), vec3(-hx, hy, -hz), vec3(hx, -hy, -hz) ), false),
-        // Back Wall
-        Triangle(vec3[3]( vec3(-hx, hy, -hz), vec3(hx, hy, -hz), vec3(-hx, hy, hz) ), false),
-        Triangle(vec3[3]( vec3(hx, hy, hz), vec3(-hx, hy, hz), vec3(hx, hy, -hz) ), false),
-        // Left Wall
-        Triangle(vec3[3]( vec3(-hx, -hy, -hz), vec3(-hx, hy, -hz), vec3(-hx, -hy, hz) ), false),
-        Triangle(vec3[3]( vec3(-hx, hy, hz), vec3(-hx, -hy, hz), vec3(-hx, hy, -hz) ), false),
-        // Right Wall
-        Triangle(vec3[3]( vec3(hx, -hy, -hz), vec3(hx, hy, -hz), vec3(hx, -hy, hz) ), false),
-        Triangle(vec3[3]( vec3(hx, hy, hz), vec3(hx, -hy, hz), vec3(hx, hy, -hz) ), false),
-        // Ceiling
-        Triangle(vec3[3]( vec3(-hx, -hy, hz), vec3(hx, -hy, hz), vec3(-hx, hy, hz) ), false),
-        Triangle(vec3[3]( vec3(hx, hy, hz), vec3(-hx, hy, hz), vec3(hx, -hy, hz) ), false),
+//        Triangle(vec3[3]( vec3(-hx, -hy, -hz), vec3(hx, -hy, -hz), vec3(-hx, hy, -hz) ),
+//                 false,
+//                 whiteDiffuse),
+//        Triangle(vec3[3]( vec3(hx, hy, -hz), vec3(-hx, hy, -hz), vec3(hx, -hy, -hz) ),
+//                 false,
+//                 whiteDiffuse),
+//        // Back Wall
+//        Triangle(vec3[3]( vec3(-hx, hy, -hz), vec3(hx, hy, -hz), vec3(-hx, hy, hz) ),
+//                 false,
+//                 whiteDiffuse),
+//        Triangle(vec3[3]( vec3(hx, hy, hz), vec3(-hx, hy, hz), vec3(hx, hy, -hz) ),
+//                 false,
+//                 whiteDiffuse),
+//        // Left Wall
+//        Triangle(vec3[3]( vec3(-hx, -hy, -hz), vec3(-hx, hy, -hz), vec3(-hx, -hy, hz) ),
+//                 false,
+//                 redDiffuse),
+//        Triangle(vec3[3]( vec3(-hx, hy, hz), vec3(-hx, -hy, hz), vec3(-hx, hy, -hz) ),
+//                 false,
+//                 redDiffuse),
+//        // Right Wall
+//        Triangle(vec3[3]( vec3(hx, -hy, -hz), vec3(hx, -hy, hz), vec3(hx, hy, -hz) ),
+//                 false,
+//                 greenDiffuse),
+//        Triangle(vec3[3]( vec3(hx, hy, hz), vec3(hx, hy, -hz), vec3(hx, -hy, hz) ),
+//                 false,
+//                 greenDiffuse),
+//        // Ceiling
+//        Triangle(vec3[3]( vec3(-hx, -hy, hz), vec3(-hx, hy, hz), vec3(hx, -hy, hz) ),
+//                 false,
+//                 whiteDiffuse),
+//        Triangle(vec3[3]( vec3(hx, hy, hz), vec3(hx, -hy, hz), vec3(-hx, hy, hz) ),
+//                 false,
+//                 whiteDiffuse),
 
         // Area Light
-        Triangle(vec3[3]( vec3(-p*hx, -p*hy, hz+dz), vec3(p*hx, -p*hy, hz+dz), vec3(-p*hx, p*hy, hz+dz) ), true),
-        Triangle(vec3[3]( vec3(p*hx, p*hy, hz+dz), vec3(-p*hx, p*hy, hz+dz), vec3(p*hx, -p*hy, hz+dz) ), true)
+        Triangle(vec3[3]( vec3(-p*hx, -p*hy, hz+dz), vec3(-p*hx, p*hy, hz+dz), vec3(p*hx, -p*hy, hz+dz) ),
+                 true,
+                 whiteLight),
+        Triangle(vec3[3]( vec3(p*hx, p*hy, hz+dz), vec3(p*hx, -p*hy, hz+dz), vec3(-p*hx, p*hy, hz+dz) ),
+                 true,
+                 whiteLight)
 
     );
     for (int i=0; i<n_tris; ++i) {
@@ -173,20 +260,18 @@ Scene scene2() {
 
     // Throw in a couple of spheres too
     const float radius = 4.0;
-    const int n_spheres = 2;
+    const int n_spheres = 1;//2;
     scene.n_spheres = n_spheres;
     Sphere spheres[n_spheres] = Sphere[n_spheres](
-        Sphere(radius, vec3(0.4 * hx, -0.2 * hy, -hz + radius)),
-        Sphere(radius, vec3(-0.4 * hx, 0.5 * hy, -hz + radius))
+        Sphere(radius, vec3(0.4 * hx, -0.2 * hy, -hz + radius), whiteDiffuse/*specular*/)
+        //Sphere(radius, vec3(-0.4 * hx, 0.5 * hy, -hz + radius), blueGloss)
     );
     for (int i=0; i<n_spheres; ++i) {
         scene.spheres[i] = spheres[i];
     }
 
     // Indicate to the scene which primitives are lights (only 2 triangles in this case)
-    scene.t_lights[0] = n_tris-1;
-    scene.t_lights[1] = n_tris-2;
-
+    scene.t_lights[0] = ivec2(n_tris-1, n_tris-2);
     return scene;
 }
 
@@ -195,14 +280,13 @@ Scene scene2() {
 IntersectionPoint intersect_scene(Scene scene, Ray ray) {
     IntersectionPoint minpoint;
     minpoint.t = INF;
-    minpoint.on_light = false;
 
     // Triangle intersection
     for (int i=0; i<scene.n_tris; ++i) {
         IntersectionPoint isect = intersect_triangle(scene.tris[i], ray);
         if (isect.t < minpoint.t) {
             minpoint = isect;
-            minpoint.on_light = scene.tris[i].is_light;
+            minpoint.mat = scene.tris[i].mat;
         }
     }
 
@@ -211,6 +295,7 @@ IntersectionPoint intersect_scene(Scene scene, Ray ray) {
     IntersectionPoint isect = intersect_sphere(scene.spheres[i], ray);
         if (isect.t < minpoint.t) {
             minpoint = isect;
+            minpoint.mat = scene.spheres[i].mat;
         }
     }
 
@@ -223,14 +308,17 @@ void main() {
     float n_ = float(n);
     if (blah > 0) {
         // Dynamic constants
-        vec2 uv = v_pos.xy;  // In [-1, 1] range! Different from my ShaderToy.
-        float AR = 1728.0 / 1051.0;
+        vec2 uv = v_pos.xy;  // In [-1, 1] range, different from my ShaderToy!
+        float AR = gl_FragCoord.x / gl_FragCoord.y;
         float inv_AR = 1.0 / AR;
+        uint rngState = uint(uint(uv.x) * uint(1973) + uint(uv.y) * uint(9277) + uint(n) * uint(26699)) | uint(1);
+        bool prevHitWasSpecular = false;
 
         // Get camera pos (in range [-1,1]^2) from mouse
-        //        vec2 mouseUV = ((iMouse.xy / iResolution.xy) * 2.0) - vec2(1.0);
-        //        theta -= mouseUV.x * 2.0;
-        //        phi += mouseUV.y * 2.0;
+//        vec2 mouseUV = ((iMouse.xy / iResolution.xy) * 2.0) - vec2(1.0);
+//        theta -= mouseUV.x * 2.0;
+//        phi += mouseUV.y * 2.0;
+
 
         // Point light (the actual light for Blinn-Phong in this demo)
         vec3 light_pos = 20.0 * vec3(0.0, -1.0, 0.0);
@@ -249,31 +337,108 @@ void main() {
         // Scene to use
         Scene s = scene2();
 
-        // Single ray (per pixel)
+        // Primary ray (per pixel, without jittering)
         Ray r;
         r.dir = normalize(point - eye);
         r.origin = eye;
 
-        IntersectionPoint isect = intersect_scene(s, r);
-        vec3 rgb = vec3(0.0);
-        if (isect.on_light) {
-            rgb = vec3(1.0);
-        }
-        else if (isect.t != INF) {
-            vec3 l = normalize(light_pos - isect.pos);
-            vec3 v = normalize(-r.dir);
-            vec3 h = normalize(l + v);
-            vec3 n = isect.nor;
+        vec3 radiance = vec3(0.0);
+        vec3 throughput = vec3(1.0);
+        int bounce = 0;
+        int m_bounce = max_bounce; //(iMouse / iResolution.x).z > 0.0 ? 1 : max_bounce;
+        while (bounce <= m_bounce) {
+            IntersectionPoint isect = intersect_scene(s, r);
+            Material mat = isect.mat;
+            // If intersected, only then continue loop
+            if (isect.t != INF) {
+                // If we hit a light
+                if (mat.is_light) {
+                    vec3 Le = mat.diffuseCol;
+                    if (bounce == 0 || prevHitWasSpecular) {radiance += throughput * Le;}
+                    break;  // End loop if we hit light (either including it's brightess or not)
+                }
 
-            float ambient = 0.6;
-            float diffuse = max(dot(n, l), 0.0);
-            float specular = diffuse != 0.0 ? pow(max(dot(n, h), 0.0), 50.0) : diffuse;
-            rgb = vec3((0.3 * ambient_col * ambient) + light_col * ((0.6 * diffuse) + (0.3 * specular)));
+//                // Otherwise we hit a legit object.
+//                vec3 albedo = mat.diffuseCol;
+//                vec3 specularCol = mat.specularCol;
+//                bool specular = mat.percentSpecular > 0.0;
+//                // 1. Directly sample the light sources for point. NOTE: Currently only implemented for 1 source.
+//                Triangle light_half = s.tris[s.t_lights[0].x];
+//                vec2 xi = vec2(RandomFloat01(rngState), RandomFloat01(rngState));
+//                vec3 basis1 = light_half.verts[1] - light_half.verts[0];
+//                vec3 basis2 = light_half.verts[2] - light_half.verts[0];
+//                vec3 light_point = light_half.verts[0] + (xi.x * basis1) + (xi.y * basis2);
+//                // 2. Cast shadow ray.
+//                vec3 shadow_dir = normalize(light_point - isect.pos);
+//                vec3 shadow_origin = isect.pos + (0.01 * shadow_dir);  // prevent shadow acne
+//                Ray shadow_ray = Ray(shadow_origin, shadow_dir);
+//                IntersectionPoint shadow_isect = intersect_scene(s, shadow_ray);
+//
+//                // 3. If not in shadow AND material isn't a mirror, add to the radiance.
+//                if (length(shadow_isect.pos - light_point) < 0.001) {
+//                    float dist = length(shadow_isect.pos - isect.pos);
+//                    float pdf_A = 1.0 / length(cross(basis1, basis2));
+//                    float cosine_prime = dot(shadow_isect.nor, -shadow_dir);
+//                    float pdf_omega = pdf_A * (dist * dist) / cosine_prime;
+//                    vec3 f = specular ? vec3(0.0) : (albedo / PI);  // Whichever output direction we sample, f term will be 0 if perfect mirror.
+//                    // Make sure we're coming from the correct side of the area light.
+//                    if (cosine_prime >= 0.0) {
+//                        vec3 Le = shadow_isect.mat.diffuseCol;
+//                        radiance += Le * f * abs(dot(isect.nor, shadow_dir)) * throughput / pdf_omega;
+//                    }
+//                }
+//
+//                // 4. Sample new ray direction according to BRDF function, and it's pdf.
+//                vec3 omega_o = normalize(isect.nor + RandomUnitVector(rngState));
+//                float pdf_brdf = cos(dot(isect.nor, omega_o)) / PI;
+//                bool coin = RandomFloat01(rngState) < mat.percentSpecular;
+//                if (coin) {
+//                    omega_o = r.dir - (2.0 * dot(isect.nor, r.dir)) * isect.nor;
+//                    pdf_brdf = 1.0;  // It's actually a delta distribution but it cancels out so pdf has no contribution.
+//                }
+//                r.origin = isect.pos + (0.01 * omega_o);
+//                r.dir = omega_o;
+//
+//                // 5. Update throughput value
+//                vec3 f = coin ? vec3(mat.specularCol / cos(dot(isect.nor, -r.dir))) : albedo / PI;  // Here, specular gives legit value as we're ONLY sampling in the one possible direction.
+//                float coin_pdf = coin ? mat.percentSpecular : 1.0 - mat.percentSpecular;
+//                throughput *= f * abs(dot(isect.nor, r.dir)) / pdf_brdf / coin_pdf;
+//
+//                // 6. Terminate via Russian Roullete
+//                if (bounce > 3) {
+//                    float q = max(throughput.r, max(throughput.g, throughput.b));
+//                    if (RandomFloat01(rngState) > q) {
+//                        break;
+//                    }
+//
+//                    throughput /= q;
+//                }
+//
+//                // 7. Store whether this, now-previous-hit, was specular.
+//                prevHitWasSpecular = coin;
+
+
+                bounce += 1;
+            }
+
+            else {
+                break;  // Nothing was hit.
+            }
+
         }
+
+        // Gamma Correct
+        radiance = pow(radiance, vec3(1.0/2.2));
 
         // Store possible mouse click
-        //        bool moved = (iMouse / iResolution.x).z > 0.0;
-        frag_color = vec4(rgb, 1.0);
+//        bool moved = (iMouse / iResolution.x).z > 0.0;
+
+        // Average over last frames
+//        vec3 lastRGB = texture(iChannel0, uv).xyz;
+//        float prev_alpha = texture(iChannel0, uv).a;
+//        float alpha = (prev_alpha == 0.0 || moved) ? 1.0 : prev_alpha / (prev_alpha + 1.0);
+//        vec3 rgb = mix(lastRGB, radiance, alpha);
+        frag_color = vec4(radiance, 1.0);
     }
 
     // If it's the default frame buffer
