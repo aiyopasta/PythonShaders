@@ -155,33 +155,32 @@ if glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE:
 glUseProgram(shader)
 glClearColor(0, 0.1, 0.1, 1)  # Sets background color
 
-
-# EPILEPSY ————
-# 1. Bind the first framebuffer, and clear it.
-glBindFramebuffer(GL_FRAMEBUFFER, FBO1); glClear(GL_COLOR_BUFFER_BIT)
-# 2. Update the blah_idx variable with the value 0.
-glUniform1i(blah_idx, 1)
-# 2. Draw on the first framebuffer.
-glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
-# 3. Bind the second framebuffer.
-glBindFramebuffer(GL_FRAMEBUFFER, FBO2)
-# 4. Send the value 1 to the blah_idx variable.
-glUniform1i(blah_idx, 2)
-# 5. Draw on the second framebuffer.
-glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
-# 6. In the while loop: i) If ping_pong, Bind the first texture and draw it. Otherwise, do it for the second. ii) ping_pong = not ping_pong.
-# We should see an oscillation between what we've drawn in both of the two FBOs.
+# TODO: Now, every time the loop runs, what we wanna do is:
+# 1. Send the correct blah variable, based on value of ping_pong.
+# 2. Activate, bind, and send the texture of the previous draw into the fragment shader.
+# 3. Bind the correct framebuffer, and clear it.
+# 4. Draw onto that framebuffer.
+# 5. Do everything you did in the while loop for the epilepsy example.
 
 ping_pong = True
 while not glfw.window_should_close(window):
-    # Activate, bind, and send the correct texture into the fragment shader.
+    # 1.
+    glUniform1i(blah_idx, 1 if ping_pong else 2)
+    # 2.
     glActiveTexture(GL_TEXTURE0)
-    glBindTexture(GL_TEXTURE_2D, color_attachment1 if ping_pong else color_attachment2)   # flip the color attachment to view the different FBOs!
+    glBindTexture(GL_TEXTURE_2D, color_attachment1 if not ping_pong else color_attachment2)
     glUniform1i(screenTexture_idx, 0)
-
+    # 3.
+    glBindFramebuffer(GL_FRAMEBUFFER, FBO1 if ping_pong else FBO2)
+    glClear(GL_COLOR_BUFFER_BIT)
+    # 4.
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
+    # 5.
+    glActiveTexture(GL_TEXTURE0)
+    glBindTexture(GL_TEXTURE_2D, color_attachment1 if ping_pong else color_attachment2)   # redundant?
+    glUniform1i(screenTexture_idx, 0)
     # Let the fragment shader know to run the code for simply displaying the texture onto the screen.
     glUniform1i(blah_idx, -2394)
-
     # Bind the default FBO, clear it, and draw on it using our fragment shader.
     glBindFramebuffer(GL_FRAMEBUFFER, 0)
     glDisable(GL_DEPTH_TEST)
@@ -191,9 +190,49 @@ while not glfw.window_should_close(window):
     # Toggle ping pong
     ping_pong = not ping_pong
 
-    # Regular stuff
+    # The regular stuff
     glfw.swap_buffers(window)
     glfw.poll_events()
+
+
+# # EPILEPSY ————
+# # 1. Bind the first framebuffer, and clear it.
+# glBindFramebuffer(GL_FRAMEBUFFER, FBO1); glClear(GL_COLOR_BUFFER_BIT)
+# # 2. Update the blah_idx variable with the value 0.
+# glUniform1i(blah_idx, 1)
+# # 2. Draw on the first framebuffer.
+# glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
+# # 3. Bind the second framebuffer.
+# glBindFramebuffer(GL_FRAMEBUFFER, FBO2)
+# # 4. Send the value 1 to the blah_idx variable.
+# glUniform1i(blah_idx, 2)
+# # 5. Draw on the second framebuffer.
+# glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
+# # 6. In the while loop: i) If ping_pong, Bind the first texture and draw it. Otherwise, do it for the second. ii) ping_pong = not ping_pong.
+# # We should see an oscillation between what we've drawn in both of the two FBOs.
+#
+# ping_pong = True
+# while not glfw.window_should_close(window):
+#     # Activate, bind, and send the correct texture into the fragment shader.
+#     glActiveTexture(GL_TEXTURE0)
+#     glBindTexture(GL_TEXTURE_2D, color_attachment1 if ping_pong else color_attachment2)   # flip the color attachment to view the different FBOs!
+#     glUniform1i(screenTexture_idx, 0)
+#
+#     # Let the fragment shader know to run the code for simply displaying the texture onto the screen.
+#     glUniform1i(blah_idx, -2394)
+#
+#     # Bind the default FBO, clear it, and draw on it using our fragment shader.
+#     glBindFramebuffer(GL_FRAMEBUFFER, 0)
+#     glDisable(GL_DEPTH_TEST)
+#     glClear(GL_COLOR_BUFFER_BIT)
+#     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
+#
+#     # Toggle ping pong
+#     ping_pong = not ping_pong
+#
+#     # Regular stuff
+#     glfw.swap_buffers(window)
+#     glfw.poll_events()
 
 
 
