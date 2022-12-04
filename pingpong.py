@@ -3,31 +3,14 @@ from OpenGL.GL import *
 from OpenGL.GL.shaders import compileProgram, compileShader
 import numpy as np
 import time
-from PIL import Image
-from collections import namedtuple
-from ctypes import c_float, c_void_p, cast
+
+width, height = 1728, 1051
 
 
 def readall(filename:str):
     with open(filename) as f:
         lines = f.read()  # reads entire file as 1 string
         return lines
-
-
-def blank_image():
-    # Get the dimensions of the window
-    width, height = glfw.get_framebuffer_size(window)
-
-    # Create a blank image with the same dimensions as the window
-    img = Image.new('RGBA', (width, height), (0, 0, 0, 0))
-
-    # Extract the pixel data from the image
-    data = np.array(img.getdata(), np.uint8)
-
-    # Create a named tuple to hold the image data
-    ImageData = namedtuple('ImageData', ['width', 'height', 'data'])
-    return ImageData(img.width, img.height, data)
-
 
 # Vertex and Fragment Shader Programs for rendering
 off_vertex_src = readall('vert2.glsl')
@@ -48,7 +31,7 @@ glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 4)
 glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 1)
 glfw.window_hint(glfw.OPENGL_FORWARD_COMPAT, GL_TRUE)
 glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
-window = glfw.create_window(1728, 1051, "Hello OpenGL!", None, None)
+window = glfw.create_window(width, height, "Hello OpenGL!", None, None)
 if not window:
     glfw.terminate()
     raise Exception("glfw window cannot be created!")
@@ -113,7 +96,7 @@ color_attachment1 = glGenTextures(1)
 
 # Bind the texture for use as "GL_TEXTURE_2D"
 glBindTexture(GL_TEXTURE_2D, color_attachment1)
-glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1728 * 2, 1051 * 2, 0, GL_RGB, GL_UNSIGNED_BYTE, None)
+glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width * 2, height * 2, 0, GL_RGB, GL_UNSIGNED_BYTE, None)
 
 # Set its parameters
 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT)
@@ -137,7 +120,7 @@ color_attachment2 = glGenTextures(1)
 
 # Bind the texture for use as "GL_TEXTURE_2D"
 glBindTexture(GL_TEXTURE_2D, color_attachment2)
-glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1728 * 2, 1051 * 2, 0, GL_RGB, GL_UNSIGNED_BYTE, None)
+glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width * 2, height * 2, 0, GL_RGB, GL_UNSIGNED_BYTE, None)
 
 # Set the texture parameters
 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT)
@@ -157,32 +140,25 @@ if glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE:
 glUseProgram(shader)
 glClearColor(0, 0.1, 0.1, 1)  # Sets background color
 
-# TODO: Now, every time the loop runs, what we wanna do is:
-# 1. Send the correct blah variable, based on value of ping_pong.
-# 2. Activate, bind, and send the texture of the previous draw into the fragment shader.
-# 3. Bind the correct framebuffer, and clear it.
-# 4. Draw onto that framebuffer.
-# 5. Do everything you did in the while loop for the epilepsy example.
-
 ping_pong = True
 n = 1
 start = time.time()
 while not glfw.window_should_close(window):
     print(n)
-    # 1.
+    # 1. Send the correct blah variable, based on value of ping_pong.
     glUniform1i(blah_idx, 1 if ping_pong else 2)
     glUniform1i(n_idx, n)
     glUniform1f(time_idx, time.time() - start)
-    # 2.
+    # 2. Activate, bind, and send the texture of the previous draw into the fragment shader.
     glActiveTexture(GL_TEXTURE0)
     glBindTexture(GL_TEXTURE_2D, color_attachment1 if not ping_pong else color_attachment2)
     glUniform1i(screenTexture_idx, 0)
-    # 3.
+    # 3. Bind the correct framebuffer, and clear it.
     glBindFramebuffer(GL_FRAMEBUFFER, FBO1 if ping_pong else FBO2)
     glClear(GL_COLOR_BUFFER_BIT)
-    # 4.
+    # 4. Draw onto that framebuffer.
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
-    # 5.
+    # 5. Do everything you did in the while loop for the epilepsy example.
     glActiveTexture(GL_TEXTURE0)
     glBindTexture(GL_TEXTURE_2D, color_attachment1 if ping_pong else color_attachment2)   # redundant?
     glUniform1i(screenTexture_idx, 0)
@@ -201,83 +177,7 @@ while not glfw.window_should_close(window):
     # The regular stuff
     glfw.swap_buffers(window)
     glfw.poll_events()
-    time.sleep(1)
-
-
-# # EPILEPSY ————
-# # 1. Bind the first framebuffer, and clear it.
-# glBindFramebuffer(GL_FRAMEBUFFER, FBO1); glClear(GL_COLOR_BUFFER_BIT)
-# # 2. Update the blah_idx variable with the value 0.
-# glUniform1i(blah_idx, 1)
-# # 2. Draw on the first framebuffer.
-# glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
-# # 3. Bind the second framebuffer.
-# glBindFramebuffer(GL_FRAMEBUFFER, FBO2)
-# # 4. Send the value 1 to the blah_idx variable.
-# glUniform1i(blah_idx, 2)
-# # 5. Draw on the second framebuffer.
-# glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
-# # 6. In the while loop: i) If ping_pong, Bind the first texture and draw it. Otherwise, do it for the second. ii) ping_pong = not ping_pong.
-# # We should see an oscillation between what we've drawn in both of the two FBOs.
-#
-# ping_pong = True
-# while not glfw.window_should_close(window):
-#     # Activate, bind, and send the correct texture into the fragment shader.
-#     glActiveTexture(GL_TEXTURE0)
-#     glBindTexture(GL_TEXTURE_2D, color_attachment1 if ping_pong else color_attachment2)   # flip the color attachment to view the different FBOs!
-#     glUniform1i(screenTexture_idx, 0)
-#
-#     # Let the fragment shader know to run the code for simply displaying the texture onto the screen.
-#     glUniform1i(blah_idx, -2394)
-#
-#     # Bind the default FBO, clear it, and draw on it using our fragment shader.
-#     glBindFramebuffer(GL_FRAMEBUFFER, 0)
-#     glDisable(GL_DEPTH_TEST)
-#     glClear(GL_COLOR_BUFFER_BIT)
-#     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
-#
-#     # Toggle ping pong
-#     ping_pong = not ping_pong
-#
-#     # Regular stuff
-#     glfw.swap_buffers(window)
-#     glfw.poll_events()
-
-
-
-
-
-
-
-
-# ping_pong = True
-# start = time.time()
-# while not glfw.window_should_close(window):
-#     # Choice: True = 1, False = 2
-#     # Steps:
-#     # 1. Bind the previous FBO's texture (redundant, but that's okay).
-#     glBindTexture(GL_TEXTURE_2D, color_attachment1 if ping_pong else color_attachment2)
-#     # 2. ping_pong = not ping_pong.
-#     ping_pong = not ping_pong
-#     # 3. Bind the new FBO corresponding to the (new) ping_pong. CLEAR IT.
-#     glBindFramebuffer(GL_FRAMEBUFFER, FBO1 if ping_pong else FBO2)
-#     glClear(GL_COLOR_BUFFER_BIT)
-#     # 4. Send the previous texture to the sampler2D of this FBO. (Using glUniformi)
-#     glUniform1i(previousColor_idx, 0)  # the currently bound texture is sent
-#     # 5. Draw onto this FBO (using the sampler2D object in the fragment shader).
-#     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
-#     # 6. Bind the default FBO again. Clear it.
-#     glBindFramebuffer(GL_FRAMEBUFFER, 0)
-#     glClear(GL_COLOR_BUFFER_BIT)
-#     # 7. Bind the texture of the FBO we drew on.
-#     glBindTexture(GL_TEXTURE_2D, color_attachment1 if ping_pong else color_attachment2)
-#     # 8. Use the bound texture to draw the FBO's data onto the default FBO.
-#     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
-#
-#
-#     # Swap the buffers and poll for events
-#     glfw.swap_buffers(window)
-#     glfw.poll_events()
+    # time.sleep(0.001)
 
 # Clean up
 glfw.terminate()

@@ -14,9 +14,9 @@ in vec2 v_tex_coords;
 out vec4 frag_color;
 
 float rho = 50.0;  // dist from world origin to eye
-float theta = -PI / 2.0;
+float theta = (-PI / 2.0) + (time * (PI / 10));
 float phi = PI / 2.0;
-float focus = 35.0;  // must be less than rho!
+float focus = 40.0;  // must be less than rho!
 float s_width = 10.0;  // screen width, in the imaginary world (not actual screen)
 
 // Helper functions
@@ -141,30 +141,30 @@ Scene scene2() {
 
 
     // Box will be a collection of triangles.
-    const int n_tris = 1;//(5 + 1) * 2;
+    const int n_tris = (5 + 1) * 2;
     scene.n_tris = n_tris;
     const float p = 0.3;  // percentage smaller area-light is compared to ceiling.
     const float dz = -0.1; // z-displacement from ceiling to area light
     Triangle tris[n_tris] = Triangle[n_tris] (
         // Floor
-        Triangle(vec3[3]( vec3(-hx, -hy, -hz), vec3(hx, -hy, -hz), vec3(-hx, hy, -hz) ), false)
-//        Triangle(vec3[3]( vec3(hx, hy, -hz), vec3(-hx, hy, -hz), vec3(hx, -hy, -hz) ), false),
-//        // Back Wall
-//        Triangle(vec3[3]( vec3(-hx, hy, -hz), vec3(hx, hy, -hz), vec3(-hx, hy, hz) ), false),
-//        Triangle(vec3[3]( vec3(hx, hy, hz), vec3(-hx, hy, hz), vec3(hx, hy, -hz) ), false),
-//        // Left Wall
-//        Triangle(vec3[3]( vec3(-hx, -hy, -hz), vec3(-hx, hy, -hz), vec3(-hx, -hy, hz) ), false),
-//        Triangle(vec3[3]( vec3(-hx, hy, hz), vec3(-hx, -hy, hz), vec3(-hx, hy, -hz) ), false),
-//        // Right Wall
-//        Triangle(vec3[3]( vec3(hx, -hy, -hz), vec3(hx, hy, -hz), vec3(hx, -hy, hz) ), false),
-//        Triangle(vec3[3]( vec3(hx, hy, hz), vec3(hx, -hy, hz), vec3(hx, hy, -hz) ), false),
-//        // Ceiling
-//        Triangle(vec3[3]( vec3(-hx, -hy, hz), vec3(hx, -hy, hz), vec3(-hx, hy, hz) ), false),
-//        Triangle(vec3[3]( vec3(hx, hy, hz), vec3(-hx, hy, hz), vec3(hx, -hy, hz) ), false),
-//
-//        // Area Light
-//        Triangle(vec3[3]( vec3(-p*hx, -p*hy, hz+dz), vec3(p*hx, -p*hy, hz+dz), vec3(-p*hx, p*hy, hz+dz) ), true),
-//        Triangle(vec3[3]( vec3(p*hx, p*hy, hz+dz), vec3(-p*hx, p*hy, hz+dz), vec3(p*hx, -p*hy, hz+dz) ), true)
+        Triangle(vec3[3]( vec3(-hx, -hy, -hz), vec3(hx, -hy, -hz), vec3(-hx, hy, -hz) ), false),
+        Triangle(vec3[3]( vec3(hx, hy, -hz), vec3(-hx, hy, -hz), vec3(hx, -hy, -hz) ), false),
+        // Back Wall
+        Triangle(vec3[3]( vec3(-hx, hy, -hz), vec3(hx, hy, -hz), vec3(-hx, hy, hz) ), false),
+        Triangle(vec3[3]( vec3(hx, hy, hz), vec3(-hx, hy, hz), vec3(hx, hy, -hz) ), false),
+        // Left Wall
+        Triangle(vec3[3]( vec3(-hx, -hy, -hz), vec3(-hx, hy, -hz), vec3(-hx, -hy, hz) ), false),
+        Triangle(vec3[3]( vec3(-hx, hy, hz), vec3(-hx, -hy, hz), vec3(-hx, hy, -hz) ), false),
+        // Right Wall
+        Triangle(vec3[3]( vec3(hx, -hy, -hz), vec3(hx, hy, -hz), vec3(hx, -hy, hz) ), false),
+        Triangle(vec3[3]( vec3(hx, hy, hz), vec3(hx, -hy, hz), vec3(hx, hy, -hz) ), false),
+        // Ceiling
+        Triangle(vec3[3]( vec3(-hx, -hy, hz), vec3(hx, -hy, hz), vec3(-hx, hy, hz) ), false),
+        Triangle(vec3[3]( vec3(hx, hy, hz), vec3(-hx, hy, hz), vec3(hx, -hy, hz) ), false),
+
+        // Area Light
+        Triangle(vec3[3]( vec3(-p*hx, -p*hy, hz+dz), vec3(p*hx, -p*hy, hz+dz), vec3(-p*hx, p*hy, hz+dz) ), true),
+        Triangle(vec3[3]( vec3(p*hx, p*hy, hz+dz), vec3(-p*hx, p*hy, hz+dz), vec3(p*hx, -p*hy, hz+dz) ), true)
 
     );
     for (int i=0; i<n_tris; ++i) {
@@ -173,15 +173,15 @@ Scene scene2() {
 
     // Throw in a couple of spheres too
     const float radius = 4.0;
-//    const int n_spheres = 2;
-//    scene.n_spheres = n_spheres;
-//    Sphere spheres[n_spheres] = Sphere[n_spheres](
-//        Sphere(radius, vec3(0.4 * hx, -0.2 * hy, -hz + radius)),
-//        Sphere(radius, vec3(-0.4 * hx, 0.5 * hy, -hz + radius))
-//    );
-//    for (int i=0; i<n_spheres; ++i) {
-//        scene.spheres[i] = spheres[i];
-//    }
+    const int n_spheres = 2;
+    scene.n_spheres = n_spheres;
+    Sphere spheres[n_spheres] = Sphere[n_spheres](
+        Sphere(radius, vec3(0.4 * hx, -0.2 * hy, -hz + radius)),
+        Sphere(radius, vec3(-0.4 * hx, 0.5 * hy, -hz + radius))
+    );
+    for (int i=0; i<n_spheres; ++i) {
+        scene.spheres[i] = spheres[i];
+    }
 
     // Indicate to the scene which primitives are lights (only 2 triangles in this case)
     scene.t_lights[0] = n_tris-1;
@@ -195,6 +195,7 @@ Scene scene2() {
 IntersectionPoint intersect_scene(Scene scene, Ray ray) {
     IntersectionPoint minpoint;
     minpoint.t = INF;
+    minpoint.on_light = false;
 
     // Triangle intersection
     for (int i=0; i<scene.n_tris; ++i) {
@@ -210,7 +211,6 @@ IntersectionPoint intersect_scene(Scene scene, Ray ray) {
     IntersectionPoint isect = intersect_sphere(scene.spheres[i], ray);
         if (isect.t < minpoint.t) {
             minpoint = isect;
-            minpoint.on_light = false;
         }
     }
 
@@ -220,102 +220,60 @@ IntersectionPoint intersect_scene(Scene scene, Ray ray) {
 
 void main() {
     vec4 tex = texture(screenTexture, v_tex_coords);
-    vec3 rgb;
     float n_ = float(n);
     if (blah > 0) {
-//        if (v_pos.x < -0.5) {
-//            frag_color = vec4(1.0);
-//        }
-//        else {
-//            frag_color = vec4(0.0);
-//        }
-
-        if ((v_pos.x < -0.5) && (n % 2 == 0)) {
-            rgb = vec3(1.0, 0.0, 0.0);
-        }
-        else {
-            rgb = vec3(0.0, 0.0, 0.0);
-        }
-
-//        if (n % 3 == 0) {
-//            if (v_pos.x < -0.5) {
-//                rgb = vec3(1.0, 0.0, 0.0);
-//            }
-//        }
-//        else {
-//            if (v_pos.x < -0.5) {
-//                rgb = vec3(0.0, 0.0, 0.0);
-//            }
-//        }
-
-        frag_color = vec4((rgb + ((n_-1.0) * tex.rgb)) / n_, 1.0);
-
         // Dynamic constants
-//        vec2 uv = ((v_pos.xy / 2.0) + 1.0) / gl_FragCoord.xy;
-//        vec3 rgb;
-//        if ((uv.x > 0.5) || (uv.y > 0.5)) {
-//            rgb = vec3(1.0, 0.0, 0.0);
-//        }
-//
-//        // Output to screen.
-//        frag_color = vec4(rgb,1.0);
+        vec2 uv = v_pos.xy;  // In [-1, 1] range! Different from my ShaderToy.
+        float AR = 1728.0 / 1051.0;
+        float inv_AR = 1.0 / AR;
 
-//        float AR = gl_FragCoord.x / gl_FragCoord.y;
-//        float inv_AR = 1.0 / AR;
-//
-//        // Get camera pos (in range [-1,1]^2) from mouse
-////        vec2 mouseUV = ((iMouse.xy / iResolution.xy) * 2.0) - vec2(1.0);
-////        theta -= mouseUV.x * 2.0;
-////        phi += mouseUV.y * 2.0;
-//
-//        // Point light (the actual light for Blinn-Phong in this demo)
-//        vec3 light_pos = 20.0 * vec3(0.0, -1.0, 0.0);
-//        vec3 light_col = vec3(1.0, 0.0, 0.0);
-//        vec3 ambient_col = vec3(1.0, 0.0, 0.0);
-//
-//        // Set eye position and virtual screen dimensions
-//        vec3 eye = rho * vec3(sin(phi) * cos(theta), sin(phi) * sin(theta), cos(phi));
-//        float s_height = s_width * inv_AR;
-//
-//        // Turn uv from [0,1]^2 range to [-1,1]^2 range (with y still up)
-//        vec2 uv_prime = (uv * 2.0) - vec2(1.0);
-//
-//        // Spherical unit vectors
-//        vec3 theta_hat = vec3(-sin(theta), cos(theta), 0);
-//        vec3 phi_hat = -vec3(cos(phi) * cos(theta), cos(phi) * sin(theta), -sin(phi));
-//        vec3 point = (eye * (focus / rho)) + ((uv_prime.x * (s_width / 2.0) * theta_hat) + (uv_prime.y * (s_height / 2.0) * phi_hat));
-//
-//        // Scene to use
-//        Scene s = scene2();
-//
-//        // Single ray (per pixel)
-//        Ray r;
-//        r.dir = normalize(point - eye);
-//        r.origin = eye;
-//
-//        IntersectionPoint isect = intersect_scene(s, r);
-//        vec3 rgb;
-//        if (isect.on_light) {rgb = vec3(1.0);}
-//        else if (isect.t != INF) {
-//            vec3 l = normalize(light_pos - isect.pos);
-//            vec3 v = normalize(-r.dir);
-//            vec3 h = normalize(l + v);
-//            vec3 n = isect.nor;
-//
-//            float ambient = 0.6;
-//            float diffuse = max(dot(n, l), 0.0);
-//            float specular = diffuse != 0.0 ? pow(max(dot(n, h), 0.0), 50.0) : diffuse;
-//            rgb = vec3((0.3 * ambient_col * ambient) + light_col * ((0.6 * diffuse) + (0.3 * specular)));
-//        }
-//
-//        // Crude test to see if it's averaging.
-//    //    if (iFrame % 2 == 0) {
-//    //        rgb = vec3(rng(vec2(iFrame, iFrame)));
-//    //    }
-//
-//        // Store possible mouse click
-////        bool moved = (iMouse / iResolution.x).z > 0.0;
-//        frag_color = vec4(rgb, 1.0);
+        // Get camera pos (in range [-1,1]^2) from mouse
+        //        vec2 mouseUV = ((iMouse.xy / iResolution.xy) * 2.0) - vec2(1.0);
+        //        theta -= mouseUV.x * 2.0;
+        //        phi += mouseUV.y * 2.0;
+
+        // Point light (the actual light for Blinn-Phong in this demo)
+        vec3 light_pos = 20.0 * vec3(0.0, -1.0, 0.0);
+        vec3 light_col = vec3(1.0, 0.0, 0.0);
+        vec3 ambient_col = vec3(1.0, 0.0, 0.0);
+
+        // Set eye position and virtual screen dimensions
+        vec3 eye = rho * vec3(sin(phi) * cos(theta), sin(phi) * sin(theta), cos(phi));
+        float s_height = s_width * inv_AR;
+
+        // Spherical unit vectors
+        vec3 theta_hat = vec3(-sin(theta), cos(theta), 0);
+        vec3 phi_hat = -vec3(cos(phi) * cos(theta), cos(phi) * sin(theta), -sin(phi));
+        vec3 point = (eye * (focus / rho)) + ((uv.x * (s_width / 2.0) * theta_hat) + (uv.y * (s_height / 2.0) * phi_hat));
+
+        // Scene to use
+        Scene s = scene2();
+
+        // Single ray (per pixel)
+        Ray r;
+        r.dir = normalize(point - eye);
+        r.origin = eye;
+
+        IntersectionPoint isect = intersect_scene(s, r);
+        vec3 rgb = vec3(0.0);
+        if (isect.on_light) {
+            rgb = vec3(1.0);
+        }
+        else if (isect.t != INF) {
+            vec3 l = normalize(light_pos - isect.pos);
+            vec3 v = normalize(-r.dir);
+            vec3 h = normalize(l + v);
+            vec3 n = isect.nor;
+
+            float ambient = 0.6;
+            float diffuse = max(dot(n, l), 0.0);
+            float specular = diffuse != 0.0 ? pow(max(dot(n, h), 0.0), 50.0) : diffuse;
+            rgb = vec3((0.3 * ambient_col * ambient) + light_col * ((0.6 * diffuse) + (0.3 * specular)));
+        }
+
+        // Store possible mouse click
+        //        bool moved = (iMouse / iResolution.x).z > 0.0;
+        frag_color = vec4(rgb, 1.0);
     }
 
     // If it's the default frame buffer
