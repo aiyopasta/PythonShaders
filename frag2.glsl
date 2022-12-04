@@ -230,11 +230,11 @@ void main() {
 //            frag_color = vec4(0.0);
 //        }
 
-        if ((v_pos.x < -0.5) && (n % 2 == 0)) {
+        if ((v_pos.x < -0.5) && (n == 1)) {
             rgb = vec3(1.0, 0.0, 0.0);
         }
         else {
-            rgb = vec3(0.0, 0.0, 0.0);
+            rgb = tex.rgb;
         }
 
 //        if (n % 3 == 0) {
@@ -248,7 +248,7 @@ void main() {
 //            }
 //        }
 
-        frag_color = vec4((rgb + ((n_-1.0) * tex.rgb)) / n_, 1.0);
+        frag_color = vec4(rgb, 1.0);//vec4((rgb + ((n_-1.0) * tex.rgb)) / n_, 1.0);
 
         // Dynamic constants
 //        vec2 uv = ((v_pos.xy / 2.0) + 1.0) / gl_FragCoord.xy;
