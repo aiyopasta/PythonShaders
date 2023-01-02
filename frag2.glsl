@@ -14,11 +14,11 @@ in vec2 v_tex_coords;
 out vec4 frag_color;
 
 float rho = 100.0;  // dist from world origin to eye
-float theta = (-PI / 2.0) + (time * (PI / 10));
+float theta = (-PI / 2.0);// + (time * (PI / 10));
 float phi = PI / 2.0;
 float focus = 80.0;  // must be less than rho!
 float s_width = 10.0;  // screen width, in the imaginary world (not actual screen)
-int max_bounce = 0;
+int max_bounce = 1;
 
 
 // Helper functions
@@ -358,64 +358,64 @@ void main() {
                     break;  // End loop if we hit light (either including it's brightess or not)
                 }
 
-//                // Otherwise we hit a legit object.
-//                vec3 albedo = mat.diffuseCol;
-//                vec3 specularCol = mat.specularCol;
-//                bool specular = mat.percentSpecular > 0.0;
-//                // 1. Directly sample the light sources for point. NOTE: Currently only implemented for 1 source.
-//                Triangle light_half = s.tris[s.t_lights[0].x];
-//                vec2 xi = vec2(RandomFloat01(rngState), RandomFloat01(rngState));
-//                vec3 basis1 = light_half.verts[1] - light_half.verts[0];
-//                vec3 basis2 = light_half.verts[2] - light_half.verts[0];
-//                vec3 light_point = light_half.verts[0] + (xi.x * basis1) + (xi.y * basis2);
-//                // 2. Cast shadow ray.
-//                vec3 shadow_dir = normalize(light_point - isect.pos);
-//                vec3 shadow_origin = isect.pos + (0.01 * shadow_dir);  // prevent shadow acne
-//                Ray shadow_ray = Ray(shadow_origin, shadow_dir);
-//                IntersectionPoint shadow_isect = intersect_scene(s, shadow_ray);
-//
-//                // 3. If not in shadow AND material isn't a mirror, add to the radiance.
-//                if (length(shadow_isect.pos - light_point) < 0.001) {
-//                    float dist = length(shadow_isect.pos - isect.pos);
-//                    float pdf_A = 1.0 / length(cross(basis1, basis2));
-//                    float cosine_prime = dot(shadow_isect.nor, -shadow_dir);
-//                    float pdf_omega = pdf_A * (dist * dist) / cosine_prime;
-//                    vec3 f = specular ? vec3(0.0) : (albedo / PI);  // Whichever output direction we sample, f term will be 0 if perfect mirror.
-//                    // Make sure we're coming from the correct side of the area light.
-//                    if (cosine_prime >= 0.0) {
-//                        vec3 Le = shadow_isect.mat.diffuseCol;
-//                        radiance += Le * f * abs(dot(isect.nor, shadow_dir)) * throughput / pdf_omega;
-//                    }
-//                }
-//
-//                // 4. Sample new ray direction according to BRDF function, and it's pdf.
-//                vec3 omega_o = normalize(isect.nor + RandomUnitVector(rngState));
-//                float pdf_brdf = cos(dot(isect.nor, omega_o)) / PI;
-//                bool coin = RandomFloat01(rngState) < mat.percentSpecular;
-//                if (coin) {
-//                    omega_o = r.dir - (2.0 * dot(isect.nor, r.dir)) * isect.nor;
-//                    pdf_brdf = 1.0;  // It's actually a delta distribution but it cancels out so pdf has no contribution.
-//                }
-//                r.origin = isect.pos + (0.01 * omega_o);
-//                r.dir = omega_o;
-//
-//                // 5. Update throughput value
-//                vec3 f = coin ? vec3(mat.specularCol / cos(dot(isect.nor, -r.dir))) : albedo / PI;  // Here, specular gives legit value as we're ONLY sampling in the one possible direction.
-//                float coin_pdf = coin ? mat.percentSpecular : 1.0 - mat.percentSpecular;
-//                throughput *= f * abs(dot(isect.nor, r.dir)) / pdf_brdf / coin_pdf;
-//
-//                // 6. Terminate via Russian Roullete
-//                if (bounce > 3) {
-//                    float q = max(throughput.r, max(throughput.g, throughput.b));
-//                    if (RandomFloat01(rngState) > q) {
-//                        break;
-//                    }
-//
-//                    throughput /= q;
-//                }
-//
-//                // 7. Store whether this, now-previous-hit, was specular.
-//                prevHitWasSpecular = coin;
+                // Otherwise we hit a legit object.
+                vec3 albedo = mat.diffuseCol;
+                vec3 specularCol = mat.specularCol;
+                bool specular = mat.percentSpecular > 0.0;
+                // 1. Directly sample the light sources for point. NOTE: Currently only implemented for 1 source.
+                Triangle light_half = s.tris[s.t_lights[0].x];
+                vec2 xi = vec2(RandomFloat01(rngState), RandomFloat01(rngState));
+                vec3 basis1 = light_half.verts[1] - light_half.verts[0];
+                vec3 basis2 = light_half.verts[2] - light_half.verts[0];
+                vec3 light_point = light_half.verts[0] + (xi.x * basis1) + (xi.y * basis2);
+                // 2. Cast shadow ray.
+                vec3 shadow_dir = normalize(light_point - isect.pos);
+                vec3 shadow_origin = isect.pos + (0.01 * shadow_dir);  // prevent shadow acne
+                Ray shadow_ray = Ray(shadow_origin, shadow_dir);
+                IntersectionPoint shadow_isect = intersect_scene(s, shadow_ray);
+
+                // 3. If not in shadow AND material isn't a mirror, add to the radiance.
+                if (length(shadow_isect.pos - light_point) < 0.001) {
+                    float dist = length(shadow_isect.pos - isect.pos);
+                    float pdf_A = 1.0 / length(cross(basis1, basis2));
+                    float cosine_prime = dot(shadow_isect.nor, -shadow_dir);
+                    float pdf_omega = pdf_A * (dist * dist) / cosine_prime;
+                    vec3 f = specular ? vec3(0.0) : (albedo / PI);  // Whichever output direction we sample, f term will be 0 if perfect mirror.
+                    // Make sure we're coming from the correct side of the area light.
+                    if (cosine_prime >= 0.0) {
+                        vec3 Le = shadow_isect.mat.diffuseCol;
+                        radiance += Le * f * abs(dot(isect.nor, shadow_dir)) * throughput / pdf_omega;
+                    }
+                }
+
+                // 4. Sample new ray direction according to BRDF function, and it's pdf.
+                vec3 omega_o = normalize(isect.nor + RandomUnitVector(rngState));
+                float pdf_brdf = cos(dot(isect.nor, omega_o)) / PI;
+                bool coin = RandomFloat01(rngState) < mat.percentSpecular;
+                if (coin) {
+                    omega_o = r.dir - (2.0 * dot(isect.nor, r.dir)) * isect.nor;
+                    pdf_brdf = 1.0;  // It's actually a delta distribution but it cancels out so pdf has no contribution.
+                }
+                r.origin = isect.pos + (0.01 * omega_o);
+                r.dir = omega_o;
+
+                // 5. Update throughput value
+                vec3 f = coin ? vec3(mat.specularCol / cos(dot(isect.nor, -r.dir))) : albedo / PI;  // Here, specular gives legit value as we're ONLY sampling in the one possible direction.
+                float coin_pdf = coin ? mat.percentSpecular : 1.0 - mat.percentSpecular;
+                throughput *= f * abs(dot(isect.nor, r.dir)) / pdf_brdf / coin_pdf;
+
+                // 6. Terminate via Russian Roullete
+                if (bounce > 3) {
+                    float q = max(throughput.r, max(throughput.g, throughput.b));
+                    if (RandomFloat01(rngState) > q) {
+                        break;
+                    }
+
+                    throughput /= q;
+                }
+
+                // 7. Store whether this, now-previous-hit, was specular.
+                prevHitWasSpecular = coin;
 
 
                 bounce += 1;
@@ -438,7 +438,7 @@ void main() {
 //        float prev_alpha = texture(iChannel0, uv).a;
 //        float alpha = (prev_alpha == 0.0 || moved) ? 1.0 : prev_alpha / (prev_alpha + 1.0);
 //        vec3 rgb = mix(lastRGB, radiance, alpha);
-        frag_color = vec4(radiance, 1.0);
+        frag_color = vec4(vec3(radiance + ((n_ - 1) * tex.rgb)) / n_, 1.0);
     }
 
     // If it's the default frame buffer
